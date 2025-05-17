@@ -40,9 +40,14 @@ The columns are the same as in the original GLODAP .mat files, except:
 The functions `download` and `read` can also be used for finer control, such as
 specifying a particular GLODAP version rather than using the latest one.  See
 their function docstrings for more information.
+
+The SHA256 checksum of each downloaded file is checked before the file is
+written to disk.
 """
 
+import hashlib
 import os
+import tempfile
 from warnings import warn
 
 import pandas as pd
@@ -52,38 +57,76 @@ from scipy.io import loadmat
 
 # Package metadata
 __author__ = "Humphreys, Matthew P."
-__version__ = "0.1"
+__version__ = "0.2"
 
 # GLODAP metadata
 version_latest = "v2.2023"
 versions = ["v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"]
-regions_full = {
+regions = {
     "arctic": "Arctic_Ocean",
     "atlantic": "Atlantic_Ocean",
     "indian": "Indian_Ocean",
     "pacific": "Pacific_Ocean",
-    "global": "Merged_Master_File",
     "world": "Merged_Master_File",
 }
-regions = regions_full.copy()
-for k, v in regions_full.items():
-    regions[k[:3]] = v
+regions_full = regions.copy()
+for k, v in regions.items():
+    regions_full[k[:3]] = v
+checksums = {
+    "v2.2023": {
+        "arc": "a998a8d99db84e9357b21a7e345bbfde62eae77870e651119b4c1929a2f1e2fd",
+        "atl": "a3ff7bc4f4ff3a1b0f540886a0eb7c9b3ec52aa4eae2dea57d47ae61f56da56f",
+        "ind": "8c9c21d4af9db506b09fdec79e2a311c2dbbf41b8fc4e6a7a855d1d50b3ccb51",
+        "pac": "9891160dba6211d2f13923171564a06bbea34cda799f3091148061c32fc6070c",
+        "wor": "002881fa71923d15c1bd5aca3b99bc220ad5d1c77a90f130ba1ff0d3910d8766",
+    },
+    "v2.2022": {
+        "arc": "b2cdeeebfb3ff75701ccc15edb22b5c8e1153623aefc6463f9699ae8780edf15",
+        "atl": "cffdb28aca195e189b16834a4f9711b90a995ea2b99d95bc6fe498049f975631",
+        "ind": "00381b0542ed4e8a39c33ee071fcb2388c1e3b3fb13f76c75fc342b26f4c8a13",
+        "pac": "4037f093d89ea422aa62524273ab40ca147934e34637496372e83f2e34fe9a66",
+        "wor": "3d7ba5bcf59b0c1f513b6fa8140df0618d984fa7b320899e7f188dd7c6cef565",
+    },
+    "v2.2021": {
+        "arc": "21e511e808b9cc9f5b8532bf3b1c6754bb4ad6c344adb4a498b71967a0b6d217",
+        "atl": "22731e474a33d10c3efd3cc6748aafca7e1488495acefe1bbbd26b4105973a21",
+        "ind": "d3c43da540e606091a981958b4ce674dbe1ef9777ffee4c90de29bcc74f010a2",
+        "pac": "925cf0424f4cd1caad30cfbe57bdc19740c85e715bee06bd298893915cfc5a01",
+        "wor": "8329acd8722a3c198455642f8fca29b05f460b149e178fef9e1041f2caa19453",
+    },
+    "v2.2020": {
+        "arc": "de52e1086b61f68d46cb0142e4bcffae18b578f41c2a00bda40a8960959a94b7",
+        "atl": "e927d87d873e089311ed5b747195aa150880f59559831bab27a54dcc0ff7ff69",
+        "ind": "1d8dfbefb820541d9b10f73d3785dae8653e67166b94666dbb433d3ddfa4e255",
+        "pac": "9a75bf66b38341117afaae947af465f8f7e4082a9f773355c1fbadf26484d544",
+        "wor": "51e1000101aa61712edb9c0074289bb83c105d17ee8cea575f8e18fa05bde953",
+    },
+    "v2.2019": {
+        "arc": "f972a835601a5b00ac5ffc5093414d5fd2a520bbc7b1c7ff0a7d343852302284",
+        "atl": "6ac0826bacbaa43a9813fe18bcb84b1786efb44538b7a2d24e8a0c993ff23193",
+        "ind": "aa6695b715cce7658f94911d38a344f1e835ff6bbed8f9dc1548b167983a2967",
+        "pac": "88df995e272dd63db55421b911be1f99bfec4cac6f97a73e017c9e275bf29db2",
+        "wor": "4637ce5eb560fe020e9fccf0370156bfe19498fc74c2e8b66dee190cc44cff63",
+    },
+}
 
 
 def _get_paths(region, version, gpath):
-    assert region in regions, "`region` not valid!"
+    assert region in regions_full, "`region` not valid!"
     if version is None:
         version = version_latest
+    version = version.lower()
     assert version in versions, "`version` not valid!"
     if gpath is None:
         gpath = os.path.join(os.path.expanduser("~"), ".glodap")
-    fileregion = regions[region.lower()]
+    fileregion = regions_full[region.lower()]
     filename = f"{fileregion}_{version}.mat"
     return gpath, fileregion, filename, version
 
 
-def download(region="world", version=None, gpath=None, do_download=True):
-    """Download a GLODAP data file and save it locally.
+def download(region="world", version=None, gpath=None, chunk_size=8192):
+    """Download a GLODAP data file and save it locally, after checking that it
+    has the expected checksum (SHA256).
 
     Parameters
     ----------
@@ -95,7 +138,6 @@ def download(region="world", version=None, gpath=None, do_download=True):
             "indian"    "ind"   Indian Ocean
             "pacific"   "pac"   Pacific Ocean
             "world"     "wor"   Merged Master File
-            "global"    "glo"   Merged Master File
     version : str or None, optional
         Which GLODAP version to download, by default `None`, in which case the
         most recent version is downloaded.  The options are:
@@ -103,13 +145,8 @@ def download(region="world", version=None, gpath=None, do_download=True):
     gpath : str of None, optional
         Where to save the downloaded file, by default `None`, in which case the
         file is saved at "~/.glodap".
-    do_download : bool, optional
-        Whether to actually download the file, by default `True`.
-
-    Returns
-    -------
-    int
-        The status code from the URL request; 200 indicates success.
+    chunk_size : int, optional
+        Chunk size for streamed file download, by default 8192.
     """
     gpath, fileregion, filename, version = _get_paths(region, version, gpath)
     if not os.path.isdir(gpath):
@@ -118,16 +155,20 @@ def download(region="world", version=None, gpath=None, do_download=True):
         f"https://glodap.info/glodap_files/{version}/"
         + f"GLODAP{version}_{fileregion}.mat"
     )
-    if do_download:
-        r = requests.get(url)
-        if r.status_code == 200:
-            with open(os.path.join(gpath, filename), "wb") as file:
-                file.write(r.content)
-        else:
-            warn(f"Could not download file - status code {r.status_code}")
-    else:
-        r = requests.head(url)
-    return r.status_code
+    hasher = hashlib.new("sha256")
+    checksum = checksums[version][region[:3].lower()]
+    with tempfile.TemporaryDirectory() as tdir:
+        temp_path = os.path.join(tdir, filename)
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(temp_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=chunk_size):
+                    f.write(chunk)
+                    hasher.update(chunk)
+            if hasher.hexdigest() == checksum:
+                os.rename(temp_path, os.path.join(gpath, filename))
+            else:
+                warn("File checksum not as expected - download failed.")
 
 
 def read(region="world", version=None, gpath=None, rename_pyco2=True):
@@ -144,7 +185,6 @@ def read(region="world", version=None, gpath=None, rename_pyco2=True):
             "indian"    "ind"   Indian Ocean
             "pacific"   "pac"   Pacific Ocean
             "world"     "wor"   Merged Master File
-            "global"    "glo"   Merged Master File
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
@@ -251,12 +291,16 @@ def read(region="world", version=None, gpath=None, rename_pyco2=True):
     return df
 
 
-def arctic(gpath=None, rename_pyco2=True):
+def arctic(version=None, gpath=None, rename_pyco2=True):
     """Import the latest version of the GLODAP Arctic Ocean dataset,
     downloading it first if it's not already available locally.
 
     Parameters
     ----------
+    version : str or None, optional
+        Which GLODAP version to import, by default `None`, in which case the
+        most recent version is imported.  The options are:
+            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -268,15 +312,24 @@ def arctic(gpath=None, rename_pyco2=True):
     pd.DataFrame
         The GLODAP Arctic Ocean dataset as a pandas DataFrame.
     """
-    return read(region="arctic", gpath=gpath, rename_pyco2=rename_pyco2)
+    return read(
+        region="arctic",
+        version=version,
+        gpath=gpath,
+        rename_pyco2=rename_pyco2,
+    )
 
 
-def atlantic(gpath=None, rename_pyco2=True):
+def atlantic(version=None, gpath=None, rename_pyco2=True):
     """Import the latest version of the GLODAP Atlantic Ocean dataset,
     downloading it first if it's not already available locally.
 
     Parameters
     ----------
+    version : str or None, optional
+        Which GLODAP version to import, by default `None`, in which case the
+        most recent version is imported.  The options are:
+            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -288,15 +341,24 @@ def atlantic(gpath=None, rename_pyco2=True):
     pd.DataFrame
         The GLODAP Atlantic Ocean dataset as a pandas DataFrame.
     """
-    return read(region="atlantic", gpath=gpath, rename_pyco2=rename_pyco2)
+    return read(
+        region="atlantic",
+        version=version,
+        gpath=gpath,
+        rename_pyco2=rename_pyco2,
+    )
 
 
-def indian(gpath=None, rename_pyco2=True):
+def indian(version=None, gpath=None, rename_pyco2=True):
     """Import the latest version of the GLODAP Indian Ocean dataset,
     downloading it first if it's not already available locally.
 
     Parameters
     ----------
+    version : str or None, optional
+        Which GLODAP version to import, by default `None`, in which case the
+        most recent version is imported.  The options are:
+            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -308,15 +370,24 @@ def indian(gpath=None, rename_pyco2=True):
     pd.DataFrame
         The GLODAP Indian Ocean dataset as a pandas DataFrame.
     """
-    return read(region="indian", gpath=gpath, rename_pyco2=rename_pyco2)
+    return read(
+        region="indian",
+        version=version,
+        gpath=gpath,
+        rename_pyco2=rename_pyco2,
+    )
 
 
-def pacific(gpath=None, rename_pyco2=True):
+def pacific(version=None, gpath=None, rename_pyco2=True):
     """Import the latest version of the GLODAP Pacific Ocean dataset,
     downloading it first if it's not already available locally.
 
     Parameters
     ----------
+    version : str or None, optional
+        Which GLODAP version to import, by default `None`, in which case the
+        most recent version is imported.  The options are:
+            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -328,15 +399,24 @@ def pacific(gpath=None, rename_pyco2=True):
     pd.DataFrame
         The GLODAP Pacific Ocean dataset as a pandas DataFrame.
     """
-    return read(region="pacific", gpath=gpath, rename_pyco2=rename_pyco2)
+    return read(
+        region="pacific",
+        version=version,
+        gpath=gpath,
+        rename_pyco2=rename_pyco2,
+    )
 
 
-def world(gpath=None, rename_pyco2=True):
+def world(version=None, gpath=None, rename_pyco2=True):
     """Import the latest version of the GLODAP Merged Master File dataset,
     downloading it first if it's not already available locally.
 
     Parameters
     ----------
+    version : str or None, optional
+        Which GLODAP version to import, by default `None`, in which case the
+        most recent version is imported.  The options are:
+            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -348,4 +428,9 @@ def world(gpath=None, rename_pyco2=True):
     pd.DataFrame
         The GLODAP Merged Master File as a pandas DataFrame dataset.
     """
-    return read(region="world", gpath=gpath, rename_pyco2=rename_pyco2)
+    return read(
+        region="world",
+        version=version,
+        gpath=gpath,
+        rename_pyco2=rename_pyco2,
+    )

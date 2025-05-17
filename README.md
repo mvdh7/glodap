@@ -53,3 +53,6 @@ The columns are the same as in the original GLODAP .mat files available from [gl
 The functions `download` and `read` can also be used for finer control, such as
 specifying a particular GLODAP version rather than using the latest one.  See
 their function docstrings for more information.
+
+The SHA256 checksum of each downloaded file is checked before the file is
+written to disk.
