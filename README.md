@@ -1,7 +1,7 @@
 # glodap
 
 [![Tests](https://github.com/mvdh7/glodap/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/mvdh7/glodap/actions)
-[![pypi badge](https://img.shields.io/pypi/v/glodap.svg?style=popout)](https://pypi.org/project/glodap/)
+[![pypi badge](https://img.shields.io/pypi/v/GLODAP.svg?style=popout)](https://pypi.org/project/GLODAP/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/glodap.svg)](https://anaconda.org/conda-forge/glodap)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
