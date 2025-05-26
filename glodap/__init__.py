@@ -254,7 +254,7 @@ def read(region="world", version=None, gpath=None):
     for k in keys_integers + keys_flags:
         df[k] = df[k].astype(int)
     # Rename columns for PyCO2SYS, if requested
-    renamer_flags = {k[:-1] + "_f" for k in keys_flags}
+    renamer_flags = {k: k[:-1] + "_f" for k in keys_flags}
     df = df.rename(columns=renamer_flags)
     # Calculate datetime for convenience - don't include hour and minute
     # because some are missing
