@@ -14,35 +14,30 @@ downloading the file if it's not already saved locally.  For example:
 Files are saved by default at "~/.glodap", but this can be controlled with the
 kwarg `gpath`.  See the function docstrings for more information.
 
-The columns of the imported DataFrames are renamed so that they can be passed
-directly into PyCO2SYS v2:
+The columns of the imported DataFrames can be passed directly into PyCO2SYS v2:
 
   >>> import PyCO2SYS as pyco2
   >>> co2s_atlantic = pyco2.sys(data=df_atlantic, nitrite=None)
 
 Note `nitrite=None` - this means PyCO2SYS will ignore the "nitrite" column,
-which is necessary because PyCO2SYS includes the nitrite-nitrous acid
-equilibrium but its equilibrium constant is valid only under lab conditions.
+which is necessary because while PyCO2SYS includes the nitrite-nitrous acid
+equilibrium, its equilibrium constant is valid only under lab conditions.
+
+Because of how the columns are named, when passing the DataFrame directly to
+PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH.
 
 The columns are the same as in the original GLODAP .mat files, except:
   * The "G2" at the start of each parameter has been removed.
   * Flags end with "_f" instead of just "f".
   * There is a "datetime" column, which combines the "year", "month" and "day"
     but NOT the "hour" and "minute" (because some of these are missing).
-  * For compatibility with PyCO2SYS:
-              "tco2" => "dic"
-              "talk" => "alkalinity"
-          "phts25p0" => "ph_lab"
-      "phtsinsitutp" => "ph_insitu"
-    Therefore when passing the DataFrame directly to PyCO2SYS as in the example
-    above, the system will be solved from DIC and alkalinity, not pH.
 
 The functions `download` and `read` can also be used for finer control, such as
 specifying a particular GLODAP version rather than using the latest one.  See
 their function docstrings for more information.
 
-The SHA256 checksum of each downloaded file is checked before the file is
-written to disk.
+The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
+of each downloaded file is checked before the file is written to disk.
 """
 
 import hashlib
@@ -57,7 +52,7 @@ from scipy.io import loadmat
 
 # Package metadata
 __author__ = "Humphreys, Matthew P."
-__version__ = "0.2"
+__version__ = "0.3"
 
 # GLODAP metadata
 version_latest = "v2.2023"
@@ -171,7 +166,7 @@ def download(region="world", version=None, gpath=None, chunk_size=8192):
                 warn("File checksum not as expected - download failed.")
 
 
-def read(region="world", version=None, gpath=None, rename_pyco2=True):
+def read(region="world", version=None, gpath=None):
     """Import a GLODAP data file as a pandas DataFrame, downloading it first
     if it's not already available locally.
 
@@ -192,8 +187,6 @@ def read(region="world", version=None, gpath=None, rename_pyco2=True):
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
-    rename_pyco2 : bool, optional
-        Whether to rename the columns to work with PyCO2SYS, by default `True`.
 
     Returns
     -------
@@ -261,20 +254,8 @@ def read(region="world", version=None, gpath=None, rename_pyco2=True):
     for k in keys_integers + keys_flags:
         df[k] = df[k].astype(int)
     # Rename columns for PyCO2SYS, if requested
-    if rename_pyco2:
-        renamer_pyco2 = {
-            "tco2": "dic",
-            "talk": "alkalinity",
-            "phts25p0": "ph_lab",
-            "phtsinsitutp": "ph_insitu",
-        }
-        renamer_flags = {
-            k: renamer_pyco2[k[:-1]] + "_f"
-            if k[:-1] in renamer_pyco2
-            else k[:-1] + "_f"
-            for k in keys_flags
-        }
-        df = df.rename(columns=renamer_pyco2).rename(columns=renamer_flags)
+    renamer_flags = {k[:-1] + "_f" for k in keys_flags}
+    df = df.rename(columns=renamer_flags)
     # Calculate datetime for convenience - don't include hour and minute
     # because some are missing
     df["datetime"] = pd.to_datetime(
@@ -291,7 +272,7 @@ def read(region="world", version=None, gpath=None, rename_pyco2=True):
     return df
 
 
-def arctic(version=None, gpath=None, rename_pyco2=True):
+def arctic(version=None, gpath=None):
     """Import the latest version of the GLODAP Arctic Ocean dataset,
     downloading it first if it's not already available locally.
 
@@ -304,8 +285,6 @@ def arctic(version=None, gpath=None, rename_pyco2=True):
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
-    rename_pyco2 : bool, optional
-        Whether to rename the columns to work with PyCO2SYS, by default `True`.
 
     Returns
     -------
@@ -316,11 +295,10 @@ def arctic(version=None, gpath=None, rename_pyco2=True):
         region="arctic",
         version=version,
         gpath=gpath,
-        rename_pyco2=rename_pyco2,
     )
 
 
-def atlantic(version=None, gpath=None, rename_pyco2=True):
+def atlantic(version=None, gpath=None):
     """Import the latest version of the GLODAP Atlantic Ocean dataset,
     downloading it first if it's not already available locally.
 
@@ -333,8 +311,6 @@ def atlantic(version=None, gpath=None, rename_pyco2=True):
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
-    rename_pyco2 : bool, optional
-        Whether to rename the columns to work with PyCO2SYS, by default `True`.
 
     Returns
     -------
@@ -345,11 +321,10 @@ def atlantic(version=None, gpath=None, rename_pyco2=True):
         region="atlantic",
         version=version,
         gpath=gpath,
-        rename_pyco2=rename_pyco2,
     )
 
 
-def indian(version=None, gpath=None, rename_pyco2=True):
+def indian(version=None, gpath=None):
     """Import the latest version of the GLODAP Indian Ocean dataset,
     downloading it first if it's not already available locally.
 
@@ -362,8 +337,6 @@ def indian(version=None, gpath=None, rename_pyco2=True):
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
-    rename_pyco2 : bool, optional
-        Whether to rename the columns to work with PyCO2SYS, by default `True`.
 
     Returns
     -------
@@ -374,11 +347,10 @@ def indian(version=None, gpath=None, rename_pyco2=True):
         region="indian",
         version=version,
         gpath=gpath,
-        rename_pyco2=rename_pyco2,
     )
 
 
-def pacific(version=None, gpath=None, rename_pyco2=True):
+def pacific(version=None, gpath=None):
     """Import the latest version of the GLODAP Pacific Ocean dataset,
     downloading it first if it's not already available locally.
 
@@ -391,8 +363,6 @@ def pacific(version=None, gpath=None, rename_pyco2=True):
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
-    rename_pyco2 : bool, optional
-        Whether to rename the columns to work with PyCO2SYS, by default `True`.
 
     Returns
     -------
@@ -403,11 +373,10 @@ def pacific(version=None, gpath=None, rename_pyco2=True):
         region="pacific",
         version=version,
         gpath=gpath,
-        rename_pyco2=rename_pyco2,
     )
 
 
-def world(version=None, gpath=None, rename_pyco2=True):
+def world(version=None, gpath=None):
     """Import the latest version of the GLODAP Merged Master File dataset,
     downloading it first if it's not already available locally.
 
@@ -420,8 +389,6 @@ def world(version=None, gpath=None, rename_pyco2=True):
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
-    rename_pyco2 : bool, optional
-        Whether to rename the columns to work with PyCO2SYS, by default `True`.
 
     Returns
     -------
@@ -432,5 +399,4 @@ def world(version=None, gpath=None, rename_pyco2=True):
         region="world",
         version=version,
         gpath=gpath,
-        rename_pyco2=rename_pyco2,
     )
