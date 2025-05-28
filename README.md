@@ -30,14 +30,14 @@ directly into [PyCO2SYS v2](https://mvdh.xyz/PyCO2SYS):
 
 ```python
 import PyCO2SYS as pyco2
-co2s_atlantic = pyco2.sys(data=df_atlantic, nitrite=None)
+co2s_atlantic = pyco2.sys(data=df_atlantic.drop(columns="fco2"), nitrite=0)
 ```
 
-Note `nitrite=None` - this means PyCO2SYS will ignore the `"nitrite"` column,
+Note `nitrite=0` - this means PyCO2SYS will ignore the `"nitrite"` column,
 which is necessary because while PyCO2SYS includes the nitrite-nitrous acid
 equilibrium, its equilibrium constant is valid only under lab conditions.
 
-Because of how the columns are named, when passing the DataFrame directly to
+Because of how the columns are named, and because we dropped the `"fco2"` column, when passing the DataFrame directly to
 PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH.
 
 The columns are the same as in the original GLODAP .mat files available from [glodap.info](https://glodap.info), except:
