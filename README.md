@@ -38,7 +38,7 @@ which is necessary because while PyCO2SYS includes the nitrite-nitrous acid
 equilibrium, its equilibrium constant is valid only under lab conditions.
 
 Because of how the columns are named, and because we dropped the `"fco2"` column, when passing the DataFrame directly to
-PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH.
+PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH nor fCO<sub>2</sub>.
 
 The columns are the same as in the original GLODAP .mat files available from [glodap.info](https://glodap.info), except:
   * The `"G2"` at the start of each parameter has been removed.
