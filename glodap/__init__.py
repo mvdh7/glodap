@@ -52,7 +52,7 @@ from scipy.io import loadmat
 
 # Package metadata
 __author__ = "Humphreys, Matthew P."
-__version__ = "0.3"
+__version__ = "0.4"
 
 # GLODAP metadata
 version_latest = "v2.2023"

@@ -10,9 +10,9 @@ description = "GLODAP downloader and importer in Python"
 readme = "README.md"
 requires-python = ">= 3.10"
 dependencies = [
-    "pandas",
-    "requests",
-    "scipy",
+    "pandas>=3.0.3,<4",
+    "requests>=2.34.2,<3",
+    "scipy>=1.17.1,<2",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Natural Language :: English",
@@ -34,3 +35,15 @@ include = ["glodap*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "glodap.__version__"}
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+glodap = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+ipykernel = ">=7.2.0,<8"
