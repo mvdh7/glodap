@@ -40,19 +40,17 @@ The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
 of each downloaded file is checked before the file is written to disk.
 """
 
-import hashlib
 import os
-import tempfile
-from warnings import warn
+from pathlib import Path
 
 import pandas as pd
-import requests
+import pooch
 from scipy.io import loadmat
 
 
 # Package metadata
 __author__ = "Humphreys, Matthew P."
-__version__ = "0.3"
+__version__ = "0.4"
 
 # GLODAP metadata
 version_latest = "v2.2023"
@@ -113,7 +111,7 @@ def _get_paths(region, version, gpath):
     version = version.lower()
     assert version in versions, "`version` not valid!"
     if gpath is None:
-        gpath = os.path.join(os.path.expanduser("~"), ".glodap")
+        gpath = Path(Path.home(), ".glodap")
     fileregion = regions_full[region.lower()]
     filename = f"{fileregion}_{version}.mat"
     return gpath, fileregion, filename, version
@@ -150,20 +148,13 @@ def download(region="world", version=None, gpath=None, chunk_size=8192):
         f"https://glodap.info/glodap_files/{version}/"
         + f"GLODAP{version}_{fileregion}.mat"
     )
-    hasher = hashlib.new("sha256")
     checksum = checksums[version][region[:3].lower()]
-    with tempfile.TemporaryDirectory() as tdir:
-        temp_path = os.path.join(tdir, filename)
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            with open(temp_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=chunk_size):
-                    f.write(chunk)
-                    hasher.update(chunk)
-            if hasher.hexdigest() == checksum:
-                os.rename(temp_path, os.path.join(gpath, filename))
-            else:
-                warn("File checksum not as expected - download failed.")
+    pooch.retrieve(
+        url,
+        known_hash=f"sha256:{checksum}",
+        fname=filename,
+        path=gpath,
+    )
 
 
 def read(region="world", version=None, gpath=None):
@@ -195,10 +186,10 @@ def read(region="world", version=None, gpath=None):
     """
     gpath, _, filename, version = _get_paths(region, version, gpath)
     try:
-        df = loadmat(os.path.join(gpath, filename))
+        df = loadmat(Path(gpath, filename))
     except FileNotFoundError:
         download(region=region, version=version, gpath=gpath)
-        df = loadmat(os.path.join(gpath, filename))
+        df = loadmat(Path(gpath, filename))
     df = pd.DataFrame(
         {
             k[2:]: [w[0][0] for w in v] if v.dtype == "O" else v.ravel()
