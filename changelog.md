@@ -1,5 +1,9 @@
 # glodap changelog
 
+## v0.4 (forthcoming)
+
+  * Switched to [Pooch](https://github.com/fatiando/pooch) for download handling.
+
 ## v0.3 (26 May 2025)
 
   * Renaming columns for PyCO2SYS v2 removed (no longer necessary due to PyCO2SYS updates).
