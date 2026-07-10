@@ -50,7 +50,7 @@ The functions `download` and `read` can also be used for finer control, such as
 specifying a particular GLODAP version rather than using the latest one (currently `v3.2026`).  See
 their function docstrings for more information.
 
-The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
+The files from the GEOMAR mirrors are downloaded (v2: .mat files; v3: .csv.zip files), and the SHA256 checksum
 of each downloaded file is checked before the file is written to disk.
 
 # Citation
