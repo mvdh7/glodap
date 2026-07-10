@@ -47,7 +47,7 @@ The columns are the same as in the original GLODAP .mat files available from [gl
   * There is a `"datetime"` column, which combines the `"year"`, `"month"` and `"day"` but NOT the `"hour"` and `"minute"` (because some of these are missing).
 
 The functions `download` and `read` can also be used for finer control, such as
-specifying a particular GLODAP version rather than using the latest one.  See
+specifying a particular GLODAP version rather than using the latest one (currently `v3.2026`).  See
 their function docstrings for more information.
 
 The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
