@@ -8,18 +8,18 @@ build-backend = "setuptools.build_meta"
 name = "glodap"
 description = "GLODAP downloader and importer in Python"
 readme = "README.md"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 dependencies = [
-    "pandas",
-    "requests",
-    "scipy",
+    "pandas>=3.0.3,<4",
+    "pooch>=1.9.0,<2",
+    "scipy>=1.17.1,<2",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Natural Language :: English",
@@ -34,3 +34,16 @@ include = ["glodap*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "glodap.__version__"}
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+lines-after-imports = 2
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.3.0",
+]

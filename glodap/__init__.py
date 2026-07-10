@@ -1,8 +1,8 @@
 """
 GLODAP
 ======
-Download GLODAP (https://glodap.info) datasets and import them as pandas
-DataFrames.
+Download Global Ocean Data Analysis Project (GLODAP; https://glodap.info)
+datasets and import them as pandas DataFrames.
 
 The functions `arctic`, `atlantic`, `indian`, `pacific` and `world` import the
 latest version of the GLODAP dataset for the corresponding region, first
@@ -40,23 +40,32 @@ The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
 of each downloaded file is checked before the file is written to disk.
 """
 
-import hashlib
 import os
+import shutil
 import tempfile
-from warnings import warn
+from pathlib import Path
 
+import numpy as np
 import pandas as pd
-import requests
+import pooch
 from scipy.io import loadmat
 
 
 # Package metadata
 __author__ = "Humphreys, Matthew P."
-__version__ = "0.3"
+__version__ = "0.4"
 
 # GLODAP metadata
-version_latest = "v2.2023"
-versions = ["v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"]
+version_latest = "v3.2026"
+versions = [
+    "v3.2026",
+    "v2.2023",
+    "v2.2022",
+    "v2.2021",
+    "v2.2020",
+    "v2.2019",
+    "v2.2016",
+]
 regions = {
     "arctic": "Arctic_Ocean",
     "atlantic": "Atlantic_Ocean",
@@ -67,7 +76,15 @@ regions = {
 regions_full = regions.copy()
 for k, v in regions.items():
     regions_full[k[:3]] = v
+regions_short_to_long = {k[:3]: k for k in regions}
 checksums = {
+    "v3.2026": {
+        "arc": "03dfcf59525931065247e142439d97c0ed88d8f572e87df919476deebdc57d5c",
+        "atl": "a4577bbb676c30327b185fc5bf0ddc0e302464d5332b6d630922faf536dbe68c",
+        "ind": "79d655bd203e4579007b7224fc53b87ee8a5d70bb733550f0acac260a6baa0d8",
+        "pac": "1a5afbb6be199773e00772ca3b1b84241dfc52a591b3f6b85786180f5711a9b4",
+        "wor": "214aeb49c618474bf92622a37d2795a10160954ab49a94f9052cff1dd41947fd",
+    },
     "v2.2023": {
         "arc": "a998a8d99db84e9357b21a7e345bbfde62eae77870e651119b4c1929a2f1e2fd",
         "atl": "a3ff7bc4f4ff3a1b0f540886a0eb7c9b3ec52aa4eae2dea57d47ae61f56da56f",
@@ -103,6 +120,13 @@ checksums = {
         "pac": "88df995e272dd63db55421b911be1f99bfec4cac6f97a73e017c9e275bf29db2",
         "wor": "4637ce5eb560fe020e9fccf0370156bfe19498fc74c2e8b66dee190cc44cff63",
     },
+    "v2.2016": {
+        "arc": "f2214409e0526052903da2427f3f8c6fd433b1759ba2a1be3a61181b4b0d04b7",
+        "atl": "fb26a86ca1135a0afc94157ba7963bc1cb8138523bcba36360595641175f8da1",
+        "ind": "ba162aa6f1fa7209f586e503581d3cc05cdffbfa6f72bdc535824f7a78d694f9",
+        "pac": "0d1666de27ad6853533651027459d2525f75c6681d540f129df705b018d3c931",
+        "wor": "aa202e330d5e77b98d0062e40a40665b8397b83ebbfa00424532139c53814f5e",
+    },
 }
 
 
@@ -113,13 +137,16 @@ def _get_paths(region, version, gpath):
     version = version.lower()
     assert version in versions, "`version` not valid!"
     if gpath is None:
-        gpath = os.path.join(os.path.expanduser("~"), ".glodap")
+        gpath = Path(Path.home(), ".glodap")
     fileregion = regions_full[region.lower()]
-    filename = f"{fileregion}_{version}.mat"
+    if version.startswith("v2"):
+        filename = f"{fileregion}_{version}.mat"
+    elif version.startswith("v3"):
+        filename = f"{fileregion}_{version}.csv.zip"
     return gpath, fileregion, filename, version
 
 
-def download(region="world", version=None, gpath=None, chunk_size=8192):
+def download(region="world", version=None, gpath=None):
     """Download a GLODAP data file and save it locally, after checking that it
     has the expected checksum (SHA256).
 
@@ -136,7 +163,13 @@ def download(region="world", version=None, gpath=None, chunk_size=8192):
     version : str or None, optional
         Which GLODAP version to download, by default `None`, in which case the
         most recent version is downloaded.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to save the downloaded file, by default `None`, in which case the
         file is saved at "~/.glodap".
@@ -146,24 +179,29 @@ def download(region="world", version=None, gpath=None, chunk_size=8192):
     gpath, fileregion, filename, version = _get_paths(region, version, gpath)
     if not os.path.isdir(gpath):
         os.makedirs(gpath)
-    url = (
-        f"https://glodap.info/glodap_files/{version}/"
-        + f"GLODAP{version}_{fileregion}.mat"
-    )
-    hasher = hashlib.new("sha256")
+    if version == "v2.2016":
+        fr = fileregion.replace("_", " ")
+        url = (
+            f"https://glodap.info/glodap_files/{version}/"
+            + f"GLODAPv2 {fr}.mat"
+        )
+    elif version.startswith("v2"):
+        url = (
+            f"https://glodap.info/glodap_files/{version}/"
+            + f"GLODAP{version}_{fileregion}.mat"
+        )
+    elif version.startswith("v3"):
+        url = (
+            "https://glodap.info/glodap_files/v3/"
+            + f"GLODAPv3_{fileregion}.csv.zip"
+        )
     checksum = checksums[version][region[:3].lower()]
-    with tempfile.TemporaryDirectory() as tdir:
-        temp_path = os.path.join(tdir, filename)
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            with open(temp_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=chunk_size):
-                    f.write(chunk)
-                    hasher.update(chunk)
-            if hasher.hexdigest() == checksum:
-                os.rename(temp_path, os.path.join(gpath, filename))
-            else:
-                warn("File checksum not as expected - download failed.")
+    pooch.retrieve(
+        url,
+        known_hash=f"sha256:{checksum}",
+        fname=filename,
+        path=gpath,
+    )
 
 
 def read(region="world", version=None, gpath=None):
@@ -183,7 +221,13 @@ def read(region="world", version=None, gpath=None):
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -193,19 +237,30 @@ def read(region="world", version=None, gpath=None):
     pd.DataFrame
         The GLODAP dataset as a pandas DataFrame.
     """
+    if region.lower() in regions_short_to_long:
+        region = regions_short_to_long[region.lower()]
     gpath, _, filename, version = _get_paths(region, version, gpath)
-    try:
-        df = loadmat(os.path.join(gpath, filename))
-    except FileNotFoundError:
-        download(region=region, version=version, gpath=gpath)
-        df = loadmat(os.path.join(gpath, filename))
-    df = pd.DataFrame(
-        {
-            k[2:]: [w[0][0] for w in v] if v.dtype == "O" else v.ravel()
-            for k, v in df.items()
-            if k.startswith("G2")
-        }
-    )
+    download(region=region, version=version, gpath=gpath)
+    if version.startswith("v2"):
+        df = loadmat(Path(gpath, filename))
+        df = pd.DataFrame(
+            {
+                k[2:]: [w[0][0] for w in v] if v.dtype == "O" else v.ravel()
+                for k, v in df.items()
+                if k.startswith("G2")
+            }
+        )
+    elif version.startswith("v3"):
+        with tempfile.TemporaryDirectory() as tdir:
+            shutil.unpack_archive(Path(gpath, filename), tdir)
+            tfilename = [f for f in os.listdir(tdir) if f.endswith(".csv")][0]
+            df = pd.read_csv(
+                Path(tdir, tfilename),
+                dtype={
+                    "expocode": str,
+                    "ph_scale": str,
+                },
+            ).replace([-9999, "-9999"], np.nan)
     # Convert columns that should be integers into integers
     # Can't convert cast, hour, minute to integers because they have missing
     # values
@@ -251,11 +306,26 @@ def read(region="world", version=None, gpath=None):
         "tdnf",
         "chlaf",
     ]
+    if region in ["indian", "world"] and version == "v2.2016":
+        for k in keys_flags:
+            if k in df:
+                df.loc[df[k].isnull(), k] = 9
     for k in keys_integers + keys_flags:
-        df[k] = df[k].astype(int)
+        if k in df:
+            df[k] = df[k].astype(int)
     # Rename columns for PyCO2SYS, if requested
     renamer_flags = {k: k[:-1] + "_f" for k in keys_flags}
     df = df.rename(columns=renamer_flags)
+    # Correct fatal datetime errors in v2.2016
+    if version == "v2.2016":
+        if region in ["indian", "world"]:
+            L = (df.cruise == 696) & (df.station == 15537)
+            df.loc[L, "month"] = 12
+            df.loc[L, "day"] = 1
+        if region in ["pacific", "world"]:
+            L = (df.cruise == 270) & (df.station == 113)
+            df.loc[L, "month"] = 4
+            df.loc[L, "day"] = 30
     # Calculate datetime for convenience - don't include hour and minute
     # because some are missing
     df["datetime"] = pd.to_datetime(
@@ -281,7 +351,13 @@ def arctic(version=None, gpath=None):
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -307,7 +383,13 @@ def atlantic(version=None, gpath=None):
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -333,7 +415,13 @@ def indian(version=None, gpath=None):
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -359,7 +447,13 @@ def pacific(version=None, gpath=None):
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
@@ -385,7 +479,13 @@ def world(version=None, gpath=None):
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case the
         most recent version is imported.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v3.2026"  (the original GLODAPv3)
+            "v2.2023",
+            "v2.2022",
+            "v2.2021",
+            "v2.2020",
+            "v2.2019",
+            "v2.2016" (the original GLODAPv2).
     gpath : str of None, optional
         Where to the downloaded file is or should be saved, by default `None`,
         in which case the file is imported from or saved at "~/.glodap".
