@@ -1,8 +1,8 @@
 """
 GLODAP
 ======
-Download GLODAP (https://glodap.info) datasets and import them as pandas
-DataFrames.
+Download Global Ocean Data Analysis Project (GLODAP; https://glodap.info)
+datasets and import them as pandas DataFrames.
 
 The functions `arctic`, `atlantic`, `indian`, `pacific` and `world` import the
 latest version of the GLODAP dataset for the corresponding region, first
@@ -56,7 +56,7 @@ __author__ = "Humphreys, Matthew P."
 __version__ = "0.4"
 
 # GLODAP metadata
-version_latest = "v2.2023"
+version_latest = "v3.2026"
 versions = [
     "v3.2026",
     "v2.2023",
@@ -76,6 +76,7 @@ regions = {
 regions_full = regions.copy()
 for k, v in regions.items():
     regions_full[k[:3]] = v
+regions_short_to_long = {k[:3]: k for k in regions}
 checksums = {
     "v3.2026": {
         "arc": "03dfcf59525931065247e142439d97c0ed88d8f572e87df919476deebdc57d5c",
@@ -145,7 +146,7 @@ def _get_paths(region, version, gpath):
     return gpath, fileregion, filename, version
 
 
-def download(region="world", version=None, gpath=None, chunk_size=8192):
+def download(region="world", version=None, gpath=None):
     """Download a GLODAP data file and save it locally, after checking that it
     has the expected checksum (SHA256).
 
@@ -236,6 +237,8 @@ def read(region="world", version=None, gpath=None):
     pd.DataFrame
         The GLODAP dataset as a pandas DataFrame.
     """
+    if region.lower() in regions_short_to_long:
+        region = regions_short_to_long[region.lower()]
     gpath, _, filename, version = _get_paths(region, version, gpath)
     download(region=region, version=version, gpath=gpath)
     if version.startswith("v2"):
@@ -303,11 +306,26 @@ def read(region="world", version=None, gpath=None):
         "tdnf",
         "chlaf",
     ]
+    if region in ["indian", "world"] and version == "v2.2016":
+        for k in keys_flags:
+            if k in df:
+                df.loc[df[k].isnull(), k] = 9
     for k in keys_integers + keys_flags:
-        df[k] = df[k].astype(int)
+        if k in df:
+            df[k] = df[k].astype(int)
     # Rename columns for PyCO2SYS, if requested
     renamer_flags = {k: k[:-1] + "_f" for k in keys_flags}
     df = df.rename(columns=renamer_flags)
+    # Correct fatal datetime errors in v2.2016
+    if version == "v2.2016":
+        if region in ["indian", "world"]:
+            L = (df.cruise == 696) & (df.station == 15537)
+            df.loc[L, "month"] = 12
+            df.loc[L, "day"] = 1
+        if region in ["pacific", "world"]:
+            L = (df.cruise == 270) & (df.station == 113)
+            df.loc[L, "month"] = 4
+            df.loc[L, "day"] = 30
     # Calculate datetime for convenience - don't include hour and minute
     # because some are missing
     df["datetime"] = pd.to_datetime(
