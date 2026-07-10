@@ -26,8 +26,21 @@ df_atlantic = glodap.atlantic()
 Files are saved by default at `"~/.glodap"`, but this can be controlled with the
 kwarg `gpath`.  See the function docstrings for more information.
 
-The columns of the imported DataFrames can be passed
-directly into [PyCO2SYS v2](https://mvdh.xyz/PyCO2SYS):
+The columns are the same as in the original GLODAP .mat files available from [glodap.info](https://glodap.info), except:
+  * The `"G2"` at the start of each parameter has been removed.
+  * Flags end with `"_f"` instead of just `"f"`.
+  * There is a `"datetime"` column, which combines the `"year"`, `"month"` and `"day"` but NOT the `"hour"` and `"minute"` (because some of these are missing).
+
+The functions `download` and `read` can also be used for finer control, such as
+specifying a particular GLODAP version rather than using the latest one (currently `v3.2026`).  See
+their function docstrings for more information.
+
+The files from the GEOMAR mirrors are downloaded (v2: .mat files; v3: .csv.zip files), and the SHA256 checksum
+of each downloaded file is checked before the file is written to disk.
+
+### With PyCO2SYS
+
+The columns of the imported DataFrames can be passed directly into [PyCO2SYS v2](https://mvdh.xyz/PyCO2SYS):
 
 ```python
 import PyCO2SYS as pyco2
@@ -41,19 +54,7 @@ equilibrium, its equilibrium constant is valid only under lab conditions.
 Because of how the columns are named, and because we dropped the `"fco2"` column, when passing the DataFrame directly to
 PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH nor fCO<sub>2</sub>.
 
-The columns are the same as in the original GLODAP .mat files available from [glodap.info](https://glodap.info), except:
-  * The `"G2"` at the start of each parameter has been removed.
-  * Flags end with `"_f"` instead of just `"f"`.
-  * There is a `"datetime"` column, which combines the `"year"`, `"month"` and `"day"` but NOT the `"hour"` and `"minute"` (because some of these are missing).
-
-The functions `download` and `read` can also be used for finer control, such as
-specifying a particular GLODAP version rather than using the latest one (currently `v3.2026`).  See
-their function docstrings for more information.
-
-The files from the GEOMAR mirrors are downloaded (v2: .mat files; v3: .csv.zip files), and the SHA256 checksum
-of each downloaded file is checked before the file is written to disk.
-
-# Citation
+## Cite
 
 If using GLODAP data, please cite the paper corresponding to the version you used:
 
