@@ -51,3 +51,15 @@ their function docstrings for more information.
 
 The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
 of each downloaded file is checked before the file is written to disk.
+
+# Citation
+
+If using GLODAP data, please cite the paper corresponding to the version you used:
+
+  * `v3.2026`: TBC (submitted to Earth System Science Data)
+  * `v2.2023`: https://doi.org/10.5194/essd-16-2047-2024
+  * `v2.2022`: https://doi.org/10.5194/essd-14-5543-2022
+  * `v2.2021`: https://doi.org/10.5194/essd-13-5565-2021
+  * `v2.2020`: https://doi.org/10.5194/essd-12-3653-2020
+  * `v2.2019`: https://doi.org/10.5194/essd-11-1437-2019
+  * `v2.2016`: https://doi.org/10.5194/essd-8-297-2016
