@@ -3,6 +3,7 @@
 ## v0.4 (forthcoming)
 
   * Switched to [Pooch](https://github.com/fatiando/pooch) for download handling.
+  * Added option to download and import the original v2.2016 dataset.
 
 ## v0.3 (26 May 2025)
 
