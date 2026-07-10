@@ -54,7 +54,7 @@ __version__ = "0.4"
 
 # GLODAP metadata
 version_latest = "v2.2023"
-versions = ["v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"]
+versions = ["v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019", "v2.2016"]
 regions = {
     "arctic": "Arctic_Ocean",
     "atlantic": "Atlantic_Ocean",
@@ -101,6 +101,13 @@ checksums = {
         "pac": "88df995e272dd63db55421b911be1f99bfec4cac6f97a73e017c9e275bf29db2",
         "wor": "4637ce5eb560fe020e9fccf0370156bfe19498fc74c2e8b66dee190cc44cff63",
     },
+    "v2.2016": {
+        "arc": "f2214409e0526052903da2427f3f8c6fd433b1759ba2a1be3a61181b4b0d04b7",
+        "atl": "fb26a86ca1135a0afc94157ba7963bc1cb8138523bcba36360595641175f8da1",
+        "ind": "ba162aa6f1fa7209f586e503581d3cc05cdffbfa6f72bdc535824f7a78d694f9",
+        "pac": "0d1666de27ad6853533651027459d2525f75c6681d540f129df705b018d3c931",
+        "wor": "aa202e330d5e77b98d0062e40a40665b8397b83ebbfa00424532139c53814f5e",
+    },
 }
 
 
@@ -134,7 +141,7 @@ def download(region="world", version=None, gpath=None, chunk_size=8192):
     version : str or None, optional
         Which GLODAP version to download, by default `None`, in which case the
         most recent version is downloaded.  The options are:
-            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019"
+            "v2.2023", "v2.2022", "v2.2021", "v2.2020", "v2.2019", "v2.2016"
     gpath : str of None, optional
         Where to save the downloaded file, by default `None`, in which case the
         file is saved at "~/.glodap".
@@ -144,10 +151,17 @@ def download(region="world", version=None, gpath=None, chunk_size=8192):
     gpath, fileregion, filename, version = _get_paths(region, version, gpath)
     if not os.path.isdir(gpath):
         os.makedirs(gpath)
-    url = (
-        f"https://glodap.info/glodap_files/{version}/"
-        + f"GLODAP{version}_{fileregion}.mat"
-    )
+    if version.lower() == "v2.2016":
+        fr = fileregion.replace("_", " ")
+        url = (
+            f"https://glodap.info/glodap_files/{version}/"
+            + f"GLODAPv2 {fr}.mat"
+        )
+    elif version.lower().startswith("v2"):
+        url = (
+            f"https://glodap.info/glodap_files/{version}/"
+            + f"GLODAP{version}_{fileregion}.mat"
+        )
     checksum = checksums[version][region[:3].lower()]
     pooch.retrieve(
         url,
