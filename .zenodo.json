@@ -1,7 +1,7 @@
 {
-    "description": "Processing measurements of dissolved inorganic carbon", 
+    "description": "", 
     "license": "GPL-3.0-only", 
-    "title": "Processing measurements of dissolved inorganic carbon: koolstof", 
+    "title": "GLODAP downloader and importer in Python", 
     "creators": [
         {
             "affiliation": "NIOZ Royal Netherlands Institute for Sea Research, Texel, the Netherlands", 
