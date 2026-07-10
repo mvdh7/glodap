@@ -3,6 +3,7 @@
 [![Tests](https://github.com/mvdh7/glodap/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/mvdh7/glodap/actions)
 [![pypi badge](https://img.shields.io/pypi/v/glodap.svg?style=popout)](https://pypi.org/project/glodap/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/glodap.svg)](https://anaconda.org/conda-forge/glodap)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21295574-informational)](https://doi.org/10.5281/zenodo.21295574)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
@@ -63,3 +64,7 @@ If using GLODAP data, please cite the paper corresponding to the version you use
   * `v2.2020`: https://doi.org/10.5194/essd-12-3653-2020
   * `v2.2019`: https://doi.org/10.5194/essd-11-1437-2019
   * `v2.2016`: https://doi.org/10.5194/essd-8-297-2016
+
+If you would also like to cite this tool directly:
+
+> Humphreys, M. P. (2026). GLODAP downloader and importer in Python [Computer software]. *Zenodo.* https://doi.org/10.5281/zenodo.21295574
