@@ -56,7 +56,7 @@ PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH nor
 
 ## Cite
 
-If using GLODAP data, please cite the paper corresponding to the version you used:
+If you use GLODAP data, please cite the paper corresponding to the version you used:
 
   * `v3.2026`: TBC (submitted to *Earth System Science Data*)
   * `v2.2023`: https://doi.org/10.5194/essd-16-2047-2024
@@ -65,6 +65,8 @@ If using GLODAP data, please cite the paper corresponding to the version you use
   * `v2.2020`: https://doi.org/10.5194/essd-12-3653-2020
   * `v2.2019`: https://doi.org/10.5194/essd-11-1437-2019
   * `v2.2016`: https://doi.org/10.5194/essd-8-297-2016
+
+If your analysis leans heavily on a specific subset of GLODAP, please consider inviting the PIs of the relevant datasets to be contribute as co-authors.
 
 If you would also like to cite this tool directly:
 
