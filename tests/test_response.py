@@ -10,7 +10,6 @@ def test_response():
         for region, version in itertools.product(
             glodap.regions, glodap.versions
         ):
-            print(region, version)
             glodap.download(region=region, version=version, gpath=tdir)
 
 
