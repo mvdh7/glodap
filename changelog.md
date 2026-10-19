@@ -1,6 +1,6 @@
 # glodap changelog
 
-## v0.4 (forthcoming)
+## v0.4 (10 July 2026)
 
   * Added options to download and import the v2.2016 (original v2) and v3.2026 (original v3) datasets.
   * Switched to [Pooch](https://github.com/fatiando/pooch) for download handling.
