@@ -53,7 +53,7 @@ from scipy.io import loadmat
 
 # Package metadata
 __author__ = "Humphreys, Matthew P."
-__version__ = "0.4"
+__version__ = "0.5"
 
 # GLODAP metadata
 version_latest = "v3.2026"
@@ -253,7 +253,7 @@ def read(region="world", version=None, gpath=None):
     elif version.startswith("v3"):
         with tempfile.TemporaryDirectory() as tdir:
             shutil.unpack_archive(Path(gpath, filename), tdir)
-            tfilename = [f for f in os.listdir(tdir) if f.endswith(".csv")][0]
+            tfilename = next(f for f in os.listdir(tdir) if f.endswith(".csv"))
             df = pd.read_csv(
                 Path(tdir, tfilename),
                 dtype={
