@@ -41,8 +41,6 @@ of each downloaded file is checked before the file is written to disk.
 """
 
 import os
-import shutil
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -251,16 +249,14 @@ def read(region="world", version=None, gpath=None):
             }
         )
     elif version.startswith("v3"):
-        with tempfile.TemporaryDirectory() as tdir:
-            shutil.unpack_archive(Path(gpath, filename), tdir)
-            tfilename = next(f for f in os.listdir(tdir) if f.endswith(".csv"))
-            df = pd.read_csv(
-                Path(tdir, tfilename),
-                dtype={
-                    "expocode": str,
-                    "ph_scale": str,
-                },
-            ).replace([-9999, "-9999"], np.nan)
+        df = pd.read_csv(
+            Path(gpath, filename),
+            compression="zip",
+            dtype={
+                "expocode": str,
+                "ph_scale": str,
+            },
+        ).replace([-9999, "-9999"], np.nan)
     # Convert columns that should be integers into integers
     # Can't convert cast, hour, minute to integers because they have missing
     # values
