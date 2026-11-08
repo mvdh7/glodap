@@ -256,7 +256,8 @@ def read(region="world", version=None, gpath=None):
                 "expocode": str,
                 "ph_scale": str,
             },
-        ).replace([-9999, "-9999"], np.nan)
+            na_values=[-9999, "-9999"],
+        )
     # Convert columns that should be integers into integers
     # Can't convert cast, hour, minute to integers because they have missing
     # values
