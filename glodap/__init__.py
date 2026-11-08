@@ -43,7 +43,6 @@ of each downloaded file is checked before the file is written to disk.
 import os
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pooch
 from scipy.io import loadmat
