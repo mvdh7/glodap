@@ -40,8 +40,8 @@ The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
 of each downloaded file is checked before the file is written to disk.
 """
 
-import os
 from pathlib import Path
+from urllib.parse import quote
 
 import pandas as pd
 import pooch
@@ -137,7 +137,8 @@ def _get_paths(region, version, gpath):
     if version not in versions:
         raise ValueError("`version` not valid!")
     if gpath is None:
-        gpath = Path(Path.home(), ".glodap")
+        gpath = "~/.glodap"
+    gpath = Path(gpath).expanduser()
     fileregion = regions_full[region]
     if version.startswith("v2"):
         filename = f"{fileregion}_{version}.mat"
@@ -177,8 +178,7 @@ def download(region="world", version=None, gpath=None):
         Chunk size for streamed file download, by default 8192.
     """
     gpath, fileregion, filename, version = _get_paths(region, version, gpath)
-    if not os.path.isdir(gpath):
-        os.makedirs(gpath)
+    Path(gpath).mkdir(parents=True, exist_ok=True)
     if version == "v2.2016":
         fr = fileregion.replace("_", " ")
         url = (
@@ -197,7 +197,7 @@ def download(region="world", version=None, gpath=None):
         )
     checksum = checksums[version][region[:3].lower()]
     pooch.retrieve(
-        url,
+        quote(url),
         known_hash=f"sha256:{checksum}",
         fname=filename,
         path=gpath,
