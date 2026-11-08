@@ -129,11 +129,13 @@ checksums = {
 
 
 def _get_paths(region, version, gpath):
-    assert region in regions_full, "`region` not valid!"
+    if region not in regions_full:
+        raise ValueError("`region` not valid!")
     if version is None:
         version = version_latest
     version = version.lower()
-    assert version in versions, "`version` not valid!"
+    if version not in versions:
+        raise ValueError("`version` not valid!")
     if gpath is None:
         gpath = Path(Path.home(), ".glodap")
     fileregion = regions_full[region.lower()]
