@@ -6,8 +6,8 @@ import glodap
 
 def test_region_names():
     # Check that the first 3 letters of each region name are unique
-    regions_short = {k[:3] for k in glodap.regions}
-    assert len(regions_short) == len(glodap.regions)
+    regions_short = {k[:3] for k in glodap._regions}
+    assert len(regions_short) == len(glodap._regions)
 
 
 def test_regions_latest():
@@ -23,5 +23,5 @@ def test_regions_latest():
     assert isinstance(df, pd.DataFrame)
 
 
-# test_region_names()
-# test_regions_latest()
+test_region_names()
+test_regions_latest()

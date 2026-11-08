@@ -198,7 +198,7 @@ def _download(region="world", version=None, gpath=None):
     elif version.startswith("v2"):
         url = f"{version}/GLODAP{version}_{fileregion}.mat"
     elif version.startswith("v3"):
-        url = "v3/GLODAPv3_{fileregion}.csv.zip"
+        url = f"v3/GLODAPv3_{fileregion}.csv.zip"
     checksum = _checksums[version][region[:3].lower()]
     pooch.retrieve(
         "https://glodap.info/glodap_files/" + quote(url),
@@ -327,7 +327,8 @@ def _read(region="world", version=None, gpath=None):
             L = (df.cruise == 270) & (df.station == 113)
             df.loc[L, "month"] = 4
             df.loc[L, "day"] = 30
-    # Calculate datetime for convenience - don't include hour and minute
+    df = df.copy()  # suppress highly fragmented DataFrame warning
+    # Calculate datetime for convenience - but exclude hour and minute,
     # because some are missing
     df["datetime"] = pd.to_datetime(
         df[
