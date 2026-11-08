@@ -1,43 +1,56 @@
 """
 GLODAP
 ======
-Download Global Ocean Data Analysis Project (GLODAP; https://glodap.info)
-datasets and import them as pandas DataFrames.
+Download Global Ocean Data Analysis Project (https://glodap.info)
+version 2 and 3 datasets and import them as pandas DataFrames.
 
-The functions `arctic`, `atlantic`, `indian`, `pacific` and `world` import the
-latest version of the GLODAP dataset for the corresponding region, first
-downloading the file if it's not already saved locally.  For example:
+FUNCTIONS
+---------
+The functions `arctic`, `atlantic`, `indian`, `pacific` and `world`
+import the latest version of the GLODAP dataset for the corresponding
+region, first downloading the file if it's not already saved locally.
+For example:
 
   >>> import glodap
   >>> df_atlantic = glodap.atlantic()
 
-Files are saved by default at "~/.glodap", but this can be controlled with the
-kwarg `gpath`.  See the function docstrings for more information.
+Function kwargs
+---------------
+All functions (`arctic`, `atlantic`, `indian`, `pacific` and `world`)
+have the same kwargs:
 
-The columns of the imported DataFrames can be passed directly into PyCO2SYS v2:
+version : str or None, optional
+    Which GLODAP version to download.  All of the options are listed in
+    `glodap.versions`.  If `None`, then the most recent version is used,
+    which is given by `glodap.version_latest`.
+gpath : str or None, optional
+    Where to look for the GLODAP file and to download it to if not
+    found there.  If `None`, then `"~/.glodap"` is used.
 
-  >>> import PyCO2SYS as pyco2
-  >>> co2s_atlantic = pyco2.sys(data=df_atlantic, nitrite=None)
+When files are missing, the .mat (v2) or zipped CSV (v3) files from the
+GEOMAR mirrors (i.e., from https://glodap.info) are downloaded.  After
+download, the SHA256 checksum of each file is verified and the file is
+deleted in case of mismatches.
 
-Note `nitrite=None` - this means PyCO2SYS will ignore the "nitrite" column,
-which is necessary because while PyCO2SYS includes the nitrite-nitrous acid
-equilibrium, its equilibrium constant is valid only under lab conditions.
+Function return values
+----------------------
+The requested GLODAP dataset is returned as a pandas DataFrame.
 
-Because of how the columns are named, when passing the DataFrame directly to
-PyCO2SYS as above, the system will be solved from DIC and alkalinity, not pH.
+The columns are the same as in the original GLODAP files, except:
+  - v2 datasets only: the "G2" at the start of each column name has been
+    removed.
+  - Flags end with `"_f"` instead of just `"f"`.
+  - A `"datetime"` column has been added, which combines the `"year"`,
+    `"month"` and `"day"`, but NOT the `"hour"` and `"minute"` (because
+    some of these are missing).
 
-The columns are the same as in the original GLODAP .mat files, except:
-  * The "G2" at the start of each parameter has been removed.
-  * Flags end with "_f" instead of just "f".
-  * There is a "datetime" column, which combines the "year", "month" and "day"
-    but NOT the "hour" and "minute" (because some of these are missing).
-
-The functions `download` and `read` can also be used for finer control, such as
-specifying a particular GLODAP version rather than using the latest one.  See
-their function docstrings for more information.
-
-The .mat files from the GEOMAR mirrors are downloaded, and the SHA256 checksum
-of each downloaded file is checked before the file is written to disk.
+ATTRIBUTES
+----------
+versions : list[str]
+    All possible GLODAP dataset version strings.
+version_latest : str
+    The current latest version, which will be used if the `version`
+    kwarg is not provided.
 """
 
 from pathlib import Path
@@ -56,6 +69,7 @@ __all__ = [
     "atlantic",
     "indian",
     "pacific",
+    "versions",
     "world",
 ]
 
@@ -70,18 +84,18 @@ versions = [
     "v2.2019",
     "v2.2016",
 ]
-regions = {
+_regions = {
     "arctic": "Arctic_Ocean",
     "atlantic": "Atlantic_Ocean",
     "indian": "Indian_Ocean",
     "pacific": "Pacific_Ocean",
     "world": "Merged_Master_File",
 }
-regions_full = regions.copy()
-for k, v in regions.items():
-    regions_full[k[:3]] = v
-regions_short_to_long = {k[:3]: k for k in regions}
-checksums = {
+_regions_full = _regions.copy()
+for k, v in _regions.items():
+    _regions_full[k[:3]] = v
+_regions_short_to_long = {k[:3]: k for k in _regions}
+_checksums = {
     "v3.2026": {
         "arc": "03dfcf59525931065247e142439d97c0ed88d8f572e87df919476deebdc57d5c",
         "atl": "a4577bbb676c30327b185fc5bf0ddc0e302464d5332b6d630922faf536dbe68c",
@@ -136,7 +150,7 @@ checksums = {
 
 def _get_paths(region, version, gpath):
     region = region.lower()
-    if region not in regions_full:
+    if region not in _regions_full:
         raise ValueError("`region` not valid!")
     if version is None:
         version = version_latest
@@ -146,7 +160,7 @@ def _get_paths(region, version, gpath):
     if gpath is None:
         gpath = "~/.glodap"
     gpath = Path(gpath).expanduser()
-    fileregion = regions_full[region]
+    fileregion = _regions_full[region]
     if version.startswith("v2"):
         filename = f"{fileregion}_{version}.mat"
     elif version.startswith("v3"):
@@ -155,34 +169,26 @@ def _get_paths(region, version, gpath):
 
 
 def _download(region="world", version=None, gpath=None):
-    """Download a GLODAP data file and save it locally, after checking that it
-    has the expected checksum (SHA256).
+    """Download a GLODAP data file and save it locally, after checking
+    that it has the expected checksum (SHA256).
 
     Parameters
     ----------
     region : str, optional
-        Which GLODAP region to download, by default "world", which is the
-        Merged Master File.  The options are:
+        Which GLODAP region to download, by default "world", which is
+        the Merged Master File.  The options are:
             "arctic"    "arc"   Arctic Ocean
             "atlantic"  "atl"   Atlantic Ocean
             "indian"    "ind"   Indian Ocean
             "pacific"   "pac"   Pacific Ocean
             "world"     "wor"   Merged Master File
     version : str or None, optional
-        Which GLODAP version to download, by default `None`, in which case the
-        most recent version is downloaded.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to save the downloaded file, by default `None`, in which case the
-        file is saved at "~/.glodap".
-    chunk_size : int, optional
-        Chunk size for streamed file download, by default 8192.
+        Which GLODAP version to download, by default `None`, in which
+        case the most recent version is downloaded.  The options are
+        given in `glodap.versions`.
+    gpath : str or None, optional
+        Where to save the downloaded file, by default `None`, in which
+        case the file is saved at "~/.glodap".
     """
     gpath, fileregion, filename, version = _get_paths(region, version, gpath)
     Path(gpath).mkdir(parents=True, exist_ok=True)
@@ -202,7 +208,7 @@ def _download(region="world", version=None, gpath=None):
             "https://glodap.info/glodap_files/v3/"
             + f"GLODAPv3_{fileregion}.csv.zip"
         )
-    checksum = checksums[version][region[:3].lower()]
+    checksum = _checksums[version][region[:3].lower()]
     pooch.retrieve(
         quote(url),
         known_hash=f"sha256:{checksum}",
@@ -212,8 +218,8 @@ def _download(region="world", version=None, gpath=None):
 
 
 def _read(region="world", version=None, gpath=None):
-    """Import a GLODAP data file as a pandas DataFrame, downloading it first
-    if it's not already available locally.
+    """Import a GLODAP data file as a pandas DataFrame, downloading it
+    first if it's not already available locally.
 
     Parameters
     ----------
@@ -226,27 +232,25 @@ def _read(region="world", version=None, gpath=None):
             "pacific"   "pac"   Pacific Ocean
             "world"     "wor"   Merged Master File
     version : str or None, optional
-        Which GLODAP version to import, by default `None`, in which case the
-        most recent version is imported.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to the downloaded file is or should be saved, by default `None`,
-        in which case the file is imported from or saved at "~/.glodap".
+        Which GLODAP version to import, by default `None`, in which case
+        the most recent version is imported.  The options are given in
+        `glodap.versions`.
+    gpath : str or None, optional
+        Where the downloaded file is or should be saved, by default
+        `None`, in which case the file is imported from or saved at
+        "~/.glodap".
 
     Returns
     -------
     pd.DataFrame
         The GLODAP dataset as a pandas DataFrame.
     """
-    if region.lower() in regions_short_to_long:
-        region = regions_short_to_long[region.lower()]
+    if region.lower() in _regions_short_to_long:
+        region = _regions_short_to_long[region.lower()]
     gpath, _, filename, version = _get_paths(region, version, gpath)
+    # _download checks if the file is already there before downloading,
+    # so it's fine to always run it here.  It's also useful to have in
+    # because it checks the checksum of already-downloaded files.
     _download(region=region, version=version, gpath=gpath)
     if version.startswith("v2"):
         df = loadmat(Path(gpath, filename))
@@ -268,8 +272,8 @@ def _read(region="world", version=None, gpath=None):
             na_values=[-9999, "-9999"],
         )
     # Convert columns that should be integers into integers
-    # Can't convert cast, hour, minute to integers because they have missing
-    # values
+    # Can't convert cast, hour, minute to integers because they have
+    # missing values
     keys_integers = [
         "cruise",
         "station",
@@ -319,7 +323,7 @@ def _read(region="world", version=None, gpath=None):
     for k in keys_integers + keys_flags:
         if k in df:
             df[k] = df[k].astype(int)
-    # Rename columns for PyCO2SYS, if requested
+    # Rename flag columns
     renamer_flags = {k: k[:-1] + "_f" for k in keys_flags}
     df = df.rename(columns=renamer_flags)
     # Correct fatal datetime errors in v2.2016
@@ -352,26 +356,7 @@ def arctic(version=None, gpath=None):
     """Import the latest version of the GLODAP Arctic Ocean dataset,
     downloading it first if it's not already available locally.
 
-    Parameters
-    ----------
-    version : str or None, optional
-        Which GLODAP version to import, by default `None`, in which case the
-        most recent version is imported.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to the downloaded file is or should be saved, by default `None`,
-        in which case the file is imported from or saved at "~/.glodap".
-
-    Returns
-    -------
-    pd.DataFrame
-        The GLODAP Arctic Ocean dataset as a pandas DataFrame.
+    See the `glodap` module docstring for info on the optional kwargs.
     """
     return _read(
         region="arctic",
@@ -384,26 +369,7 @@ def atlantic(version=None, gpath=None):
     """Import the latest version of the GLODAP Atlantic Ocean dataset,
     downloading it first if it's not already available locally.
 
-    Parameters
-    ----------
-    version : str or None, optional
-        Which GLODAP version to import, by default `None`, in which case the
-        most recent version is imported.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to the downloaded file is or should be saved, by default `None`,
-        in which case the file is imported from or saved at "~/.glodap".
-
-    Returns
-    -------
-    pd.DataFrame
-        The GLODAP Atlantic Ocean dataset as a pandas DataFrame.
+    See the `glodap` module docstring for info on the optional kwargs.
     """
     return _read(
         region="atlantic",
@@ -416,26 +382,7 @@ def indian(version=None, gpath=None):
     """Import the latest version of the GLODAP Indian Ocean dataset,
     downloading it first if it's not already available locally.
 
-    Parameters
-    ----------
-    version : str or None, optional
-        Which GLODAP version to import, by default `None`, in which case the
-        most recent version is imported.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to the downloaded file is or should be saved, by default `None`,
-        in which case the file is imported from or saved at "~/.glodap".
-
-    Returns
-    -------
-    pd.DataFrame
-        The GLODAP Indian Ocean dataset as a pandas DataFrame.
+    See the `glodap` module docstring for info on the optional kwargs.
     """
     return _read(
         region="indian",
@@ -448,26 +395,7 @@ def pacific(version=None, gpath=None):
     """Import the latest version of the GLODAP Pacific Ocean dataset,
     downloading it first if it's not already available locally.
 
-    Parameters
-    ----------
-    version : str or None, optional
-        Which GLODAP version to import, by default `None`, in which case the
-        most recent version is imported.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to the downloaded file is or should be saved, by default `None`,
-        in which case the file is imported from or saved at "~/.glodap".
-
-    Returns
-    -------
-    pd.DataFrame
-        The GLODAP Pacific Ocean dataset as a pandas DataFrame.
+    See the `glodap` module docstring for info on the optional kwargs.
     """
     return _read(
         region="pacific",
@@ -477,29 +405,10 @@ def pacific(version=None, gpath=None):
 
 
 def world(version=None, gpath=None):
-    """Import the latest version of the GLODAP Merged Master File dataset,
-    downloading it first if it's not already available locally.
+    """Import the latest version of the GLODAP Merged Master File
+    dataset, downloading it first if it's not already available locally.
 
-    Parameters
-    ----------
-    version : str or None, optional
-        Which GLODAP version to import, by default `None`, in which case the
-        most recent version is imported.  The options are:
-            "v3.2026"  (the original GLODAPv3)
-            "v2.2023",
-            "v2.2022",
-            "v2.2021",
-            "v2.2020",
-            "v2.2019",
-            "v2.2016" (the original GLODAPv2).
-    gpath : str of None, optional
-        Where to the downloaded file is or should be saved, by default `None`,
-        in which case the file is imported from or saved at "~/.glodap".
-
-    Returns
-    -------
-    pd.DataFrame
-        The GLODAP Merged Master File as a pandas DataFrame dataset.
+    See the `glodap` module docstring for info on the optional kwargs.
     """
     return _read(
         region="world",
