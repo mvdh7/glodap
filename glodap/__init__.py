@@ -129,6 +129,7 @@ checksums = {
 
 
 def _get_paths(region, version, gpath):
+    region = region.lower()
     if region not in regions_full:
         raise ValueError("`region` not valid!")
     if version is None:
@@ -138,7 +139,7 @@ def _get_paths(region, version, gpath):
         raise ValueError("`version` not valid!")
     if gpath is None:
         gpath = Path(Path.home(), ".glodap")
-    fileregion = regions_full[region.lower()]
+    fileregion = regions_full[region]
     if version.startswith("v2"):
         filename = f"{fileregion}_{version}.mat"
     elif version.startswith("v3"):
