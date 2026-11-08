@@ -51,6 +51,13 @@ from scipy.io import loadmat
 # Package metadata
 __author__ = "Humphreys, Matthew P."
 __version__ = "0.5"
+__all__ = [
+    "arctic",
+    "atlantic",
+    "indian",
+    "pacific",
+    "world",
+]
 
 # GLODAP metadata
 version_latest = "v3.2026"
@@ -147,7 +154,7 @@ def _get_paths(region, version, gpath):
     return gpath, fileregion, filename, version
 
 
-def download(region="world", version=None, gpath=None):
+def _download(region="world", version=None, gpath=None):
     """Download a GLODAP data file and save it locally, after checking that it
     has the expected checksum (SHA256).
 
@@ -204,7 +211,7 @@ def download(region="world", version=None, gpath=None):
     )
 
 
-def read(region="world", version=None, gpath=None):
+def _read(region="world", version=None, gpath=None):
     """Import a GLODAP data file as a pandas DataFrame, downloading it first
     if it's not already available locally.
 
@@ -240,12 +247,12 @@ def read(region="world", version=None, gpath=None):
     if region.lower() in regions_short_to_long:
         region = regions_short_to_long[region.lower()]
     gpath, _, filename, version = _get_paths(region, version, gpath)
-    download(region=region, version=version, gpath=gpath)
+    _download(region=region, version=version, gpath=gpath)
     if version.startswith("v2"):
         df = loadmat(Path(gpath, filename))
         df = pd.DataFrame(
             {
-                k[2:]: [w[0][0] for w in v] if v.dtype == "O" else v.ravel()
+                k[2:]: [w[0][0] for w in v] if v.dtype == object else v.ravel()
                 for k, v in df.items()
                 if k.startswith("G2")
             }
@@ -366,7 +373,7 @@ def arctic(version=None, gpath=None):
     pd.DataFrame
         The GLODAP Arctic Ocean dataset as a pandas DataFrame.
     """
-    return read(
+    return _read(
         region="arctic",
         version=version,
         gpath=gpath,
@@ -398,7 +405,7 @@ def atlantic(version=None, gpath=None):
     pd.DataFrame
         The GLODAP Atlantic Ocean dataset as a pandas DataFrame.
     """
-    return read(
+    return _read(
         region="atlantic",
         version=version,
         gpath=gpath,
@@ -430,7 +437,7 @@ def indian(version=None, gpath=None):
     pd.DataFrame
         The GLODAP Indian Ocean dataset as a pandas DataFrame.
     """
-    return read(
+    return _read(
         region="indian",
         version=version,
         gpath=gpath,
@@ -462,7 +469,7 @@ def pacific(version=None, gpath=None):
     pd.DataFrame
         The GLODAP Pacific Ocean dataset as a pandas DataFrame.
     """
-    return read(
+    return _read(
         region="pacific",
         version=version,
         gpath=gpath,
@@ -494,7 +501,7 @@ def world(version=None, gpath=None):
     pd.DataFrame
         The GLODAP Merged Master File as a pandas DataFrame dataset.
     """
-    return read(
+    return _read(
         region="world",
         version=version,
         gpath=gpath,
