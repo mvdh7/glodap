@@ -194,23 +194,14 @@ def _download(region="world", version=None, gpath=None):
     Path(gpath).mkdir(parents=True, exist_ok=True)
     if version == "v2.2016":
         fr = fileregion.replace("_", " ")
-        url = (
-            f"https://glodap.info/glodap_files/{version}/"
-            + f"GLODAPv2 {fr}.mat"
-        )
+        url = f"{version}/GLODAPv2 {fr}.mat"
     elif version.startswith("v2"):
-        url = (
-            f"https://glodap.info/glodap_files/{version}/"
-            + f"GLODAP{version}_{fileregion}.mat"
-        )
+        url = f"{version}/GLODAP{version}_{fileregion}.mat"
     elif version.startswith("v3"):
-        url = (
-            "https://glodap.info/glodap_files/v3/"
-            + f"GLODAPv3_{fileregion}.csv.zip"
-        )
+        url = "v3/GLODAPv3_{fileregion}.csv.zip"
     checksum = _checksums[version][region[:3].lower()]
     pooch.retrieve(
-        quote(url),
+        "https://glodap.info/glodap_files/" + quote(url),
         known_hash=f"sha256:{checksum}",
         fname=filename,
         path=gpath,
