@@ -23,5 +23,5 @@ def test_regions_latest():
     assert isinstance(df, pd.DataFrame)
 
 
-test_region_names()
-test_regions_latest()
+# test_region_names()
+# test_regions_latest()
