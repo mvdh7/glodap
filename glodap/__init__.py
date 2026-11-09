@@ -65,7 +65,7 @@ from scipy.io import loadmat
 
 # Package metadata
 __author__ = "Matthew P. Humphreys"
-__version__ = "1.0"
+__version__ = "1.0.0"
 __all__ = [
     "arctic",
     "atlantic",
