@@ -309,11 +309,15 @@ def _read(region="world", version=None, gpath=None):
         df[ks] = df[ks].fillna(9)
     # Can't convert "cast", "hour" or "minute" to integers because they
     # have missing values
-    k8 = [k for k in _keys_flags + ["region", "month", "day"] if k in df]
-    df[k8] = df[k8].astype(np.uint8)  # 0 to 255
-    df["year"] = df.year.astype(np.uint16)  # 0 to 65535
-    cs = ["cruise", "station"]
-    df[cs] = df[cs].astype(int)
+    dtypes = {
+        k: np.uint8  # 0 to 255
+        for k in _keys_flags + ["region", "month", "day"]
+        if k in df
+    }
+    dtypes["year"] = np.uint16  # 0 to 65535
+    dtypes["cruise"] = int
+    dtypes["station"] = int
+    df = df.astype(dtypes)
     # Rename flag columns
     df = df.rename(columns=_renamer_flags)
     # Correct fatal datetime errors in v2.2016
@@ -326,7 +330,7 @@ def _read(region="world", version=None, gpath=None):
             L = (df.cruise == 270) & (df.station == 113)
             df.loc[L, "month"] = 4
             df.loc[L, "day"] = 30
-    df = df.copy()  # suppresses 'highly fragmented DataFrame' warning
+    df._consolidate_inplace()  # suppresses 'highly fragmented DataFrame' warning
     # Calculate datetime for convenience - but exclude hour and minute,
     # because some are missing
     df["datetime"] = pd.to_datetime(df[["year", "month", "day"]])
