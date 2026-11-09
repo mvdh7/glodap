@@ -23,7 +23,7 @@ version : str or None, optional
     Which GLODAP version to download.  All of the options are listed in
     `glodap.versions`.  If `None`, then the most recent version is used,
     which is given by `glodap.version_latest`.
-gpath : str or None, optional
+gpath : str or pathlib.Path or None, optional
     Where to look for the GLODAP file and to download it to if not
     found there.  If `None`, then `"~/.glodap"` is used.
 
@@ -188,7 +188,11 @@ class ParsedInputs(NamedTuple):
     version: str
 
 
-def _parse_inputs(region, version, gpath):
+def _parse_inputs(
+    region: str,
+    version: str | None,
+    gpath: str | Path | None,
+) -> ParsedInputs:
     region = region.lower()
     if region not in _regions:
         raise ValueError("`region` not valid!")
@@ -208,7 +212,11 @@ def _parse_inputs(region, version, gpath):
     return ParsedInputs(gpath, region, fileregion, filename, version)
 
 
-def _download(region="world", version=None, gpath=None):
+def _download(
+    region: str = "world",
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> None:
     """Download a GLODAP data file and save it locally, after checking
     that it has the expected checksum (SHA256).
 
@@ -250,7 +258,11 @@ def _download(region="world", version=None, gpath=None):
     )
 
 
-def _read(region="world", version=None, gpath=None):
+def _read(
+    region: str = "world",
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> pd.DataFrame:
     """Import a GLODAP data file as a pandas DataFrame, downloading it
     first if it's not already available locally.
 
@@ -337,66 +349,61 @@ def _read(region="world", version=None, gpath=None):
     return df
 
 
-def arctic(version=None, gpath=None):
+def arctic(
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> pd.DataFrame:
     """Import the latest version of the GLODAP Arctic Ocean dataset,
     downloading it first if it's not already available locally.
 
     See the `glodap` module docstring for info on the optional kwargs.
     """
-    return _read(
-        region="arctic",
-        version=version,
-        gpath=gpath,
-    )
+    return _read(region="arctic", version=version, gpath=gpath)
 
 
-def atlantic(version=None, gpath=None):
+def atlantic(
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> pd.DataFrame:
     """Import the latest version of the GLODAP Atlantic Ocean dataset,
     downloading it first if it's not already available locally.
 
     See the `glodap` module docstring for info on the optional kwargs.
     """
-    return _read(
-        region="atlantic",
-        version=version,
-        gpath=gpath,
-    )
+    return _read(region="atlantic", version=version, gpath=gpath)
 
 
-def indian(version=None, gpath=None):
+def indian(
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> pd.DataFrame:
     """Import the latest version of the GLODAP Indian Ocean dataset,
     downloading it first if it's not already available locally.
 
     See the `glodap` module docstring for info on the optional kwargs.
     """
-    return _read(
-        region="indian",
-        version=version,
-        gpath=gpath,
-    )
+    return _read(region="indian", version=version, gpath=gpath)
 
 
-def pacific(version=None, gpath=None):
+def pacific(
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> pd.DataFrame:
     """Import the latest version of the GLODAP Pacific Ocean dataset,
     downloading it first if it's not already available locally.
 
     See the `glodap` module docstring for info on the optional kwargs.
     """
-    return _read(
-        region="pacific",
-        version=version,
-        gpath=gpath,
-    )
+    return _read(region="pacific", version=version, gpath=gpath)
 
 
-def world(version=None, gpath=None):
+def world(
+    version: str | None = None,
+    gpath: str | Path | None = None,
+) -> pd.DataFrame:
     """Import the latest version of the GLODAP Merged Master File
     dataset, downloading it first if it's not already available locally.
 
     See the `glodap` module docstring for info on the optional kwargs.
     """
-    return _read(
-        region="world",
-        version=version,
-        gpath=gpath,
-    )
+    return _read(region="world", version=version, gpath=gpath)
