@@ -29,8 +29,8 @@ gpath : str or None, optional
 
 When files are missing, the .mat (v2) or zipped CSV (v3) files from the
 GEOMAR mirrors (i.e., from https://glodap.info) are downloaded.  After
-download, the SHA256 checksum of each file is verified and the file is
-deleted in case of mismatches.
+download, the SHA256 checksum of each file is verified and the download
+is rejected in case of mismatch.
 
 Function return values
 ----------------------
@@ -53,8 +53,8 @@ version_latest : str
     kwarg is not provided.
 """
 
-from collections import namedtuple
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import quote
 
 import numpy as np
@@ -146,10 +146,46 @@ _checksums = {
     },
 }
 
-ParsedInputs = namedtuple(
-    "ParsedInputs",
-    ("gpath", "region", "fileregion", "filename", "version"),
-)
+_keys_flags = [
+    "salinityf",
+    "oxygenf",
+    "aouf",
+    "nitratef",
+    "nitritef",
+    "silicatef",
+    "phosphatef",
+    "tco2f",
+    "talkf",
+    "fco2f",
+    "phts25p0f",
+    "phtsinsitutpf",
+    "cfc11f",
+    "cfc12f",
+    "cfc113f",
+    "ccl4f",
+    "sf6f",
+    "c13f",
+    "c14f",
+    "h3f",
+    "he3f",
+    "hef",
+    "neonf",
+    "o18f",
+    "tocf",
+    "docf",
+    "donf",
+    "tdnf",
+    "chlaf",
+]
+_renamer_flags = {k: k[:-1] + "_f" for k in _keys_flags}
+
+
+class ParsedInputs(NamedTuple):
+    gpath: Path
+    region: str
+    fileregion: str
+    filename: str
+    version: str
 
 
 def _parse_inputs(region, version, gpath):
@@ -181,11 +217,11 @@ def _download(region="world", version=None, gpath=None):
     region : str, optional
         Which GLODAP region to download, by default "world", which is
         the Merged Master File.  The options are:
-            "arctic"    "arc"   Arctic Ocean
-            "atlantic"  "atl"   Atlantic Ocean
-            "indian"    "ind"   Indian Ocean
-            "pacific"   "pac"   Pacific Ocean
-            "world"     "wor"   Merged Master File
+            "arctic"    Arctic Ocean
+            "atlantic"  Atlantic Ocean
+            "indian"    Indian Ocean
+            "pacific"   Pacific Ocean
+            "world"     Merged Master File
     version : str or None, optional
         Which GLODAP version to download, by default `None`, in which
         case the most recent version is downloaded.  The options are
@@ -207,7 +243,7 @@ def _download(region="world", version=None, gpath=None):
         url = f"v3/GLODAPv3_{fileregion}.csv.zip"
     checksum = _checksums[version][region]
     pooch.retrieve(
-        "https://glodap.info/glodap_files/" + quote(url),
+        "https://glodap.info/glodap_files/" + quote(url, safe="/"),
         known_hash=f"sha256:{checksum}",
         fname=filename,
         path=gpath,
@@ -223,11 +259,11 @@ def _read(region="world", version=None, gpath=None):
     region : str, optional
         Which GLODAP region to import, by default "world", which is the
         Merged Master File.  The options are:
-            "arctic"    "arc"   Arctic Ocean
-            "atlantic"  "atl"   Atlantic Ocean
-            "indian"    "ind"   Indian Ocean
-            "pacific"   "pac"   Pacific Ocean
-            "world"     "wor"   Merged Master File
+            "arctic"    Arctic Ocean
+            "atlantic"  Atlantic Ocean
+            "indian"    Indian Ocean
+            "pacific"   Pacific Ocean
+            "world"     Merged Master File
     version : str or None, optional
         Which GLODAP version to import, by default `None`, in which case
         the most recent version is imported.  The options are given in
@@ -267,51 +303,19 @@ def _read(region="world", version=None, gpath=None):
             na_values=[-9999, "-9999"],
         )
     # Convert columns that should be integers into integers
-    keys_flags = [
-        "salinityf",
-        "oxygenf",
-        "aouf",
-        "nitratef",
-        "nitritef",
-        "silicatef",
-        "phosphatef",
-        "tco2f",
-        "talkf",
-        "fco2f",
-        "phts25p0f",
-        "phtsinsitutpf",
-        "cfc11f",
-        "cfc12f",
-        "cfc113f",
-        "ccl4f",
-        "sf6f",
-        "c13f",
-        "c14f",
-        "h3f",
-        "he3f",
-        "hef",
-        "neonf",
-        "o18f",
-        "tocf",
-        "docf",
-        "donf",
-        "tdnf",
-        "chlaf",
-    ]
     # Add missing flags in v2.2016
     if version == "v2.2016" and region in ["indian", "world"]:
-        ks = [k for k in keys_flags if k in df]
+        ks = [k for k in _keys_flags if k in df]
         df[ks] = df[ks].fillna(9)
     # Can't convert "cast", "hour" or "minute" to integers because they
     # have missing values
-    k8 = [k for k in keys_flags + ["region", "month", "day"] if k in df]
+    k8 = [k for k in _keys_flags + ["region", "month", "day"] if k in df]
     df[k8] = df[k8].astype(np.uint8)  # 0 to 255
     df["year"] = df.year.astype(np.uint16)  # 0 to 65535
     cs = ["cruise", "station"]
     df[cs] = df[cs].astype(int)
     # Rename flag columns
-    renamer_flags = {k: k[:-1] + "_f" for k in keys_flags}
-    df = df.rename(columns=renamer_flags)
+    df = df.rename(columns=_renamer_flags)
     # Correct fatal datetime errors in v2.2016
     if version == "v2.2016":
         if region in ["indian", "world"]:
