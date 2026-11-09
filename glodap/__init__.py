@@ -65,7 +65,7 @@ from scipy.io import loadmat
 
 # Package metadata
 __author__ = "Matthew P. Humphreys"
-__version__ = "0.5"
+__version__ = "1.0"
 __all__ = [
     "arctic",
     "atlantic",
@@ -234,9 +234,9 @@ def _download(
         Which GLODAP version to download, by default `None`, in which
         case the most recent version is downloaded.  The options are
         given in `glodap.versions`.
-    gpath : str or None, optional
-        Where to save the downloaded file, by default `None`, in which
-        case the file is saved at "~/.glodap".
+    gpath : str or pathlib.Path or None, optional
+        Where to check for or save the downloaded file, by default
+        `None`, in which case "~/.glodap" is used.
     """
     gpath, region, fileregion, filename, version = _parse_inputs(
         region, version, gpath
@@ -280,7 +280,7 @@ def _read(
         Which GLODAP version to import, by default `None`, in which case
         the most recent version is imported.  The options are given in
         `glodap.versions`.
-    gpath : str or None, optional
+    gpath : str or pathlib.Path or None, optional
         Where the downloaded file is or should be saved, by default
         `None`, in which case the file is imported from or saved at
         "~/.glodap".
@@ -314,11 +314,19 @@ def _read(
             },
             na_values=[-9999, "-9999"],
         )
+    # Correct fatal datetime errors and missing flags in v2.2016
+    if version == "v2.2016":
+        if region in ["indian", "world"]:
+            L = (df.cruise == 696) & (df.station == 15537)
+            df.loc[L, "month"] = 12
+            df.loc[L, "day"] = 1
+            ks = [k for k in _keys_flags if k in df]
+            df[ks] = df[ks].fillna(9)
+        if region in ["pacific", "world"]:
+            L = (df.cruise == 270) & (df.station == 113)
+            df.loc[L, "month"] = 4
+            df.loc[L, "day"] = 30
     # Convert columns that should be integers into integers
-    # Add missing flags in v2.2016
-    if version == "v2.2016" and region in ["indian", "world"]:
-        ks = [k for k in _keys_flags if k in df]
-        df[ks] = df[ks].fillna(9)
     # Can't convert "cast", "hour" or "minute" to integers because they
     # have missing values
     dtypes = {
@@ -330,19 +338,8 @@ def _read(
     dtypes["cruise"] = int
     dtypes["station"] = int
     df = df.astype(dtypes)
-    # Rename flag columns
-    df = df.rename(columns=_renamer_flags)
-    # Correct fatal datetime errors in v2.2016
-    if version == "v2.2016":
-        if region in ["indian", "world"]:
-            L = (df.cruise == 696) & (df.station == 15537)
-            df.loc[L, "month"] = 12
-            df.loc[L, "day"] = 1
-        if region in ["pacific", "world"]:
-            L = (df.cruise == 270) & (df.station == 113)
-            df.loc[L, "month"] = 4
-            df.loc[L, "day"] = 30
-    df._consolidate_inplace()  # suppresses 'highly fragmented DataFrame' warning
+    # Rename flag columns and defragment
+    df = df.rename(columns=_renamer_flags).copy()
     # Calculate datetime for convenience - but exclude hour and minute,
     # because some are missing
     df["datetime"] = pd.to_datetime(df[["year", "month", "day"]])
